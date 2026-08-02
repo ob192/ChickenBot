@@ -2,16 +2,18 @@
 
 ## Blockers
 
-- [ ] **`TELEGRAM_BOT_TOKEN` is empty** in `.env` / `.env.local`. The bot connects to
-      Postgres but exits at token validation until a real token from
-      [@BotFather](https://t.me/BotFather) is filled in. The API starts fine without it but
-      reports `reachable: false` on `/api/bot/status` and cannot send messages.
+None — the bot polls as [@chicken_hack_daniel_bot](https://t.me/chicken_hack_daniel_bot),
+the API serves on :8000, and the admin UI on :3000 (`npm run dev -- -p <port>` if that
+port is taken).
 
 ## Security
 
 - [ ] **Rotate the Neon password.** The `DATABASE_URL` credential was shared in plain text
       during development (chat/terminal); rotate it in the Neon console and update
       `.env` / `.env.local`.
+- [ ] **Rotate the bot token if it leaves this machine.** `TELEGRAM_BOT_TOKEN` was also
+      pasted in plain text during development; `/revoke` in
+      [@BotFather](https://t.me/BotFather) issues a new one.
 - [ ] **The admin UI has no login.** It holds the API key server-side, so the key never
       reaches the browser, but anyone who can reach port 3000 is an admin. Keep it on
       localhost / behind a VPN until a login or authenticating proxy is added.

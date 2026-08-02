@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter
 
-from api.deps import Pool, TelegramBot
+from api.deps import OptionalTelegramBot, Pool
 from api.schemas import BotIdentity, BotSettings, BotSettingsUpdate, BotStatus
 from core.db import get_settings, message_counts, set_setting, user_counts
 
@@ -19,7 +19,11 @@ def _to_settings(raw: dict[str, str]) -> BotSettings:
     )
 
 
-async def _identity(bot: TelegramBot) -> BotIdentity:
+async def _identity(bot: OptionalTelegramBot) -> BotIdentity:
+    if bot is None:
+        return BotIdentity(
+            id=0, reachable=False, error="TELEGRAM_BOT_TOKEN is not configured"
+        )
     try:
         me = await bot.get_me()
     except Exception as exc:  # network / invalid token / Telegram outage
@@ -31,7 +35,7 @@ async def _identity(bot: TelegramBot) -> BotIdentity:
 
 
 @router.get("/status", response_model=BotStatus)
-async def bot_status(pool: Pool, bot: TelegramBot) -> BotStatus:
+async def bot_status(pool: Pool, bot: OptionalTelegramBot) -> BotStatus:
     """Everything the dashboard needs: runtime switches, identity and counters."""
     return BotStatus(
         settings=_to_settings(await get_settings(pool)),

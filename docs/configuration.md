@@ -8,15 +8,19 @@ API. The admin UI has its own, separate env file.
 
 | Variable             | Required        | Description                                             |
 | -------------------- | --------------- | ------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN` | yes             | Bot token from [@BotFather](https://t.me/BotFather)     |
+| `TELEGRAM_BOT_TOKEN` | yes for the bot | Bot token from [@BotFather](https://t.me/BotFather)     |
 | `DATABASE_URL`       | yes             | Postgres DSN, e.g. `postgresql://user:pass@host/db?sslmode=require` |
 | `API_KEY`            | yes for the API | Shared secret clients send as `X-API-Key`; generate with `openssl rand -hex 32` |
 | `CORS_ORIGINS`       | no              | Comma-separated browser origins allowed to call the API (default `http://localhost:3000`) |
 
-The first two are read with `os.environ[...]` — both services fail fast at startup if
-either is missing. `API_KEY` is optional at import time so the bot can run without it, but
-every authenticated API route returns `503` while it is unset — the API is never
-accidentally open.
+`TELEGRAM_BOT_TOKEN` and `DATABASE_URL` are read with `os.environ[...]`, so both services
+fail fast at startup if either is missing entirely. The two keys degrade rather than crash
+when set to something unusable:
+
+- an **invalid or empty bot token** stops the bot (aiogram refuses to start), but the API
+  keeps running with sending disabled — see [api.md](api.md);
+- a **missing `API_KEY`** makes every authenticated API route return `503`, so the API is
+  never accidentally open.
 
 ## Admin UI (`admin/.env.local`)
 

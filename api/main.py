@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+from aiogram.utils.token import TokenValidationError
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,11 +19,18 @@ async def lifespan(app: FastAPI):
     app.state.pool = await create_pool(DATABASE_URL)
     # Same Bot wiring as the poller, so messages sent through the API land in the
     # message log too. It never polls — it only makes outgoing calls.
-    app.state.bot = build_bot(app.state.pool)
+    try:
+        app.state.bot = build_bot(app.state.pool)
+    except TokenValidationError:
+        # Everything except sending works without a token; don't take the whole
+        # control plane down over it (routes that need the bot answer 503).
+        logger.warning("TELEGRAM_BOT_TOKEN is missing or invalid — sending disabled")
+        app.state.bot = None
     try:
         yield
     finally:
-        await app.state.bot.session.close()
+        if app.state.bot is not None:
+            await app.state.bot.session.close()
         await app.state.pool.close()
 
 

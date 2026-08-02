@@ -23,6 +23,10 @@ It builds its `Bot` through `telegram_bot.main.build_bot()`, so **messages sent 
 API are written to the message log** by the same outgoing middleware the poller uses. The
 API never polls — it only makes outgoing calls.
 
+Without a valid `TELEGRAM_BOT_TOKEN` the service still starts: access control, the user
+list and the message log all work, `/api/bot/status` reports `reachable: false`, and only
+the routes that need Telegram (`POST /api/messages/send`) answer `503`.
+
 ## Authentication
 
 Every `/api/*` route requires the `X-API-Key` header to match the `API_KEY` environment
@@ -73,4 +77,4 @@ logged with `direction='out'` exactly like handler-sent messages.
 
 FastAPI's default: `{"detail": "..."}` with the relevant status code — `401` (bad key),
 `403` (access policy), `404` (unknown user), `422` (validation), `502` (Telegram),
-`503` (no API key configured).
+`503` (no API key, or no bot token, configured).

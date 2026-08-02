@@ -25,9 +25,21 @@ def get_pool(request: Request) -> asyncpg.Pool:
     return request.app.state.pool
 
 
-def get_bot(request: Request) -> Bot:
+def get_optional_bot(request: Request) -> Bot | None:
+    """None when TELEGRAM_BOT_TOKEN is missing — the API still runs without it."""
     return request.app.state.bot
+
+
+def get_bot(request: Request) -> Bot:
+    bot = request.app.state.bot
+    if bot is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "TELEGRAM_BOT_TOKEN is not configured — the API cannot talk to Telegram",
+        )
+    return bot
 
 
 Pool = Annotated[asyncpg.Pool, Depends(get_pool)]
 TelegramBot = Annotated[Bot, Depends(get_bot)]
+OptionalTelegramBot = Annotated[Bot | None, Depends(get_optional_bot)]
