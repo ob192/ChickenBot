@@ -12,4 +12,6 @@ RUN uv sync --frozen --no-install-project --no-dev
 
 COPY . .
 
-CMD ["uv", "run", "--no-sync", "python", "main.py"]
+# One image, two entry points: the bot is the default, the API overrides CMD
+# (see docker-compose.yml / `make up-api`).
+CMD ["uv", "run", "--no-sync", "python", "-m", "telegram_bot.main"]

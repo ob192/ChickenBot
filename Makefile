@@ -1,37 +1,53 @@
 DOCKERHUB_USER = sasha192bunin
 IMAGE = $(DOCKERHUB_USER)/chickenbot
+ADMIN_IMAGE = $(IMAGE)-admin
 TAG = latest
-CONTAINER = chickenbot
 ENV_FILE = .env
+API_PORT = 8000
 
-.PHONY: run build deploy up stop logs
+.PHONY: run bot api admin dev build build-admin deploy up stop logs
 
-## Run the bot locally with uv
-run:
-	uv run python main.py
+## Run the Telegram bot locally with uv
+bot:
+	uv run python -m telegram_bot.main
 
-## Build the docker image
+## Backwards-compatible alias for `make bot`
+run: bot
+
+## Run the FastAPI service locally (auto-reload) — http://localhost:$(API_PORT)/docs
+api:
+	uv run uvicorn api.main:app --reload --port $(API_PORT)
+
+## Run the Next.js admin UI locally — http://localhost:3000
+admin:
+	cd admin && npm run dev
+
+## Everything at once with docker compose (bot + api + admin)
+dev:
+	docker compose up --build
+
+## Build the python docker image (bot + api)
 build:
 	docker build -t $(IMAGE):$(TAG) .
 
-## Build and publish the image to Docker Hub
-deploy: build
+## Build the admin UI docker image
+build-admin:
+	docker build -t $(ADMIN_IMAGE):$(TAG) ./admin
+
+## Build and publish both images to Docker Hub
+deploy: build build-admin
 	docker push $(IMAGE):$(TAG)
+	docker push $(ADMIN_IMAGE):$(TAG)
 
-## Run the published image as a local container
+## Start the whole stack in the background
 up:
-	docker rm -f $(CONTAINER) 2>/dev/null || true
-	docker run -d \
-		--name $(CONTAINER) \
-		--restart unless-stopped \
-		--env-file $(ENV_FILE) \
-		$(IMAGE):$(TAG)
-	docker logs -f --tail 20 $(CONTAINER)
+	docker compose --env-file $(ENV_FILE) up -d
+	docker compose logs -f --tail 20
 
-## Stop and remove the container
+## Stop and remove the stack
 stop:
-	docker rm -f $(CONTAINER)
+	docker compose down
 
-## Follow container logs
+## Follow logs of all services
 logs:
-	docker logs -f $(CONTAINER)
+	docker compose logs -f

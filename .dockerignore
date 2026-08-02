@@ -5,7 +5,11 @@ __pycache__
 .env
 .env.local
 .env.example
-Dockerfile
+Dockerfile*
 .dockerignore
+docker-compose.yml
 Makefile
 README.md
+admin
+docs
+.idea
