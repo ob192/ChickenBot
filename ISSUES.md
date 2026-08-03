@@ -2,9 +2,11 @@
 
 ## Blockers
 
-None — the bot polls as [@chicken_hack_daniel_bot](https://t.me/chicken_hack_daniel_bot),
-the API serves on :8000, and the admin UI on :3000 (`npm run dev -- -p <port>` if that
-port is taken).
+None. All three services are configured and have been run successfully against the live
+Neon database — the bot connects as
+[@chicken_hack_daniel_bot](https://t.me/chicken_hack_daniel_bot). Nothing is deployed or
+running permanently: start them with `make bot` / `make api` / `make admin`, or the whole
+stack with `make dev` (see [docs/deployment.md](docs/deployment.md)).
 
 ## Security
 

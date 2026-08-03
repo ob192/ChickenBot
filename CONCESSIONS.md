@@ -84,6 +84,17 @@ gets in" rather than "nobody does". For a bot that gates paid or private content
 opposite default (fail closed) would be right — it is a one-line change in
 `telegram_bot/middlewares.py`.
 
+## The API degrades where the bot fails fast
+
+`core/config.py` reads `TELEGRAM_BOT_TOKEN` and `DATABASE_URL` with `os.environ[...]`, so a
+missing variable stops both services at import — but a *present but invalid* token is
+handled differently by each: the bot refuses to start (it has nothing to do without
+Telegram), while the API logs a warning, sets `app.state.bot = None` and answers `503` only
+on the routes that need Telegram. The inconsistency is deliberate — access control and the
+message log are useful with no token at all — but it does mean the API can look healthy
+while being unable to send anything. `/api/bot/status` is the honest signal:
+`identity.reachable` says whether Telegram actually answered.
+
 ## Settings cached for 5 seconds
 
 The bot re-reads the `settings` table at most every 5 seconds, so blocking a user or

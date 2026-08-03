@@ -47,6 +47,36 @@ Requires [uv](https://docs.astral.sh/uv/), Python 3.12+ and Node 20+.
    make admin   # http://localhost:3000
    ```
 
+### Checking it works
+
+```bash
+curl http://localhost:8000/health                                  # {"status":"ok","database":"ok"}
+curl -H "X-API-Key: $API_KEY" http://localhost:8000/api/bot/status  # identity + counters
+```
+
+`/api/bot/status` reporting `"reachable": true` means the token is good and Telegram
+answered. The bot logs `Run polling for bot @yourbot` once it is up.
+
+### If a port is taken
+
+The API port is a Makefile variable, the admin port a `next dev` flag:
+
+```bash
+make api API_PORT=8001
+cd admin && npm run dev -- -p 3001
+```
+
+Point the admin UI at a moved API with `API_BASE_URL` in `admin/.env.local`.
+
+### Running only some services
+
+They are independent processes that meet in Postgres:
+
+- the **bot** runs without the API — it just loses remote control;
+- the **API** runs without the bot, and without a valid `TELEGRAM_BOT_TOKEN` — access
+  control and the message log work, only sending is disabled (`503`);
+- the **admin UI** needs the API, and shows a diagnostic banner when it cannot reach it.
+
 ## Make targets
 
 | Target             | What it does                                                        |
@@ -74,11 +104,17 @@ telegram_bot/middlewares.py  user storage, message logging, access enforcement
 
 api/main.py               FastAPI app, lifespan, CORS, /health
 api/deps.py               X-API-Key auth + shared dependencies
+api/schemas.py            pydantic request/response models
 api/routers/              bot control, users, access, messages
 
 admin/app/                Next.js App Router pages (dashboard, users, messages)
+admin/app/api/proxy/      forwards browser calls, injecting the API key server-side
 admin/components/         interactive client components
 admin/lib/                server-side + browser-side API clients
+
+Dockerfile                python image — bot (default CMD) and api (CMD override)
+admin/Dockerfile          admin UI image
+docker-compose.yml        all three services wired together
 
 chiken/                   game mode images (Easy/Medium/Hard) — not wired up yet
 docs/                     domain documentation, see INDEX.md

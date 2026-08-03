@@ -56,7 +56,22 @@ if the access policy excludes this user" checkbox maps to the API's `force` flag
 | `API_BASE_URL` | Where FastAPI lives, no trailing slash               |
 | `API_KEY`      | Must match `API_KEY` in the project root `.env`      |
 
-Both are server-side only — do **not** prefix them with `NEXT_PUBLIC_`.
+Both are server-side only — do **not** prefix them with `NEXT_PUBLIC_`. They are read when
+a request is served, so changing them means restarting the dev server.
+
+Port 3000 is only the default: `npm run dev -- -p 3001` moves the panel, and
+`API_BASE_URL` moves the API it talks to. The proxy means the browser only ever calls the
+Next.js origin, so moving either port needs no CORS change.
+
+## Troubleshooting
+
+- **"Cannot reach the API" banner** — every page catches API failures and renders the
+  reason (connection refused, `401` on a key mismatch, …). Check the API is up
+  (`curl $API_BASE_URL/health`) and that both `API_KEY` values match.
+- **Empty user list** — expected until somebody messages the bot. Pre-authorize an id from
+  the form at the bottom of the users page to create the first row.
+- **"TELEGRAM_BOT_TOKEN is not configured"** when sending — the API started without a
+  valid token. Everything else on the panel still works; see [api.md](api.md).
 
 ## Note on authentication
 

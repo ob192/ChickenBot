@@ -58,3 +58,44 @@ Useful for maintenance windows or for stopping an incident without a redeploy.
 
 `POST /api/messages/send` applies the same rules before sending, so the admin UI cannot
 message someone the policy excludes unless `force: true` is passed explicitly.
+
+## Common tasks
+
+Everything below is also a button on the admin panel; `$K` is the API key.
+
+Lock the bot down to a handful of people:
+
+```bash
+# 1. allow each person (works before they have ever written in)
+curl -X POST -H "X-API-Key: $K" -H 'Content-Type: application/json' \
+  -d '{"telegram_id": 372096046, "note": "owner"}' \
+  http://localhost:8000/api/access/grants
+
+# 2. flip the policy — everyone else is now refused
+curl -X PATCH -H "X-API-Key: $K" -H 'Content-Type: application/json' \
+  -d '{"access_mode": "allowlist"}' http://localhost:8000/api/access/settings
+```
+
+Block one troublesome user but leave the bot open to everyone else:
+
+```bash
+curl -X PATCH -H "X-API-Key: $K" -H 'Content-Type: application/json' \
+  -d '{"status": "blocked", "note": "spam"}' \
+  http://localhost:8000/api/users/6529568076/access
+```
+
+Who is waiting for a decision:
+
+```bash
+curl -H "X-API-Key: $K" 'http://localhost:8000/api/users?status=pending'
+```
+
+Take the bot offline for maintenance, then bring it back:
+
+```bash
+curl -X PATCH -H "X-API-Key: $K" -H 'Content-Type: application/json' \
+  -d '{"enabled": false}' http://localhost:8000/api/bot/settings
+```
+
+Blocking someone does **not** delete them: their row and full message history stay, and
+`DELETE /api/access/grants/{id}` puts them back to `pending`.
