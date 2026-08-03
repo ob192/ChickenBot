@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -10,9 +11,9 @@ from aiogram.client.session.middlewares.base import (
 )
 from aiogram.methods import TelegramMethod
 from aiogram.methods.base import Response, TelegramType
-from aiogram.types import TelegramObject, Update
+from aiogram.types import Message, TelegramObject, Update
 
-from bot.db import log_message, upsert_user
+from core.db import get_access_status, get_settings, log_message, upsert_user
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,75 @@ class LogIncomingMiddleware(BaseMiddleware):
             except Exception:
                 logger.exception("Failed to log incoming update %s", event.update_id)
         return await handler(event, data)
+
+
+class AccessMiddleware(BaseMiddleware):
+    """Drops updates from users who may not use the bot, and while the bot is off.
+
+    The two knobs live in the `settings` table and are managed through the API:
+
+    - `bot_enabled`  — 'false' silences the bot entirely (updates are still logged).
+    - `access_mode`  — 'open' lets everyone through except explicitly blocked users;
+                       'allowlist' lets only `access_status = 'allowed'` users through.
+    """
+
+    #: seconds a fetched settings snapshot is reused before re-reading the table
+    SETTINGS_TTL = 5.0
+
+    def __init__(self, pool: asyncpg.Pool) -> None:
+        self.pool = pool
+        self._settings: dict[str, str] = {}
+        self._settings_read_at = 0.0
+
+    async def _current_settings(self) -> dict[str, str]:
+        now = time.monotonic()
+        if not self._settings or now - self._settings_read_at > self.SETTINGS_TTL:
+            self._settings = await get_settings(self.pool)
+            self._settings_read_at = now
+        return self._settings
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        try:
+            settings = await self._current_settings()
+            user = data.get("event_from_user")
+            status = (
+                await get_access_status(self.pool, user.id) if user else None
+            ) or "pending"
+        except Exception:
+            # Fail open: a settings/DB hiccup must not take the bot down.
+            logger.exception("Access check failed, letting the update through")
+            return await handler(event, data)
+
+        if settings.get("bot_enabled", "true") != "true":
+            return None
+
+        allowed = (
+            status != "blocked"
+            if settings.get("access_mode") == "open"
+            else status == "allowed"
+        )
+        if allowed:
+            data["access_status"] = status
+            return await handler(event, data)
+
+        # Tell the person why nothing happens — but only for plain messages, so
+        # we don't spam on every callback/edit an unauthorized user produces.
+        message = getattr(event, "event", None)
+        denied = settings.get("access_denied_message", "")
+        if denied and isinstance(message, Message):
+            try:
+                await message.answer(denied)
+            except Exception:
+                logger.exception(
+                    "Failed to send access-denied reply to %s",
+                    user.id if user else "unknown sender",
+                )
+        return None
 
 
 class LogOutgoingMiddleware(BaseRequestMiddleware):
